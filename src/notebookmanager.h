@@ -47,6 +47,7 @@ public:
     Q_INVOKABLE QString createNotebook(const QString &name);
     Q_INVOKABLE void openNotebook(const QString &path);
     Q_INVOKABLE QStringList recentNotebooks() const;
+    Q_INVOKABLE QStringList availableNotebooks() const;
     Q_INVOKABLE void removeRecent(const QString &path);
     Q_INVOKABLE QString createTab(const QString &name);
     Q_INVOKABLE QString createPage(const QString &tabPath, const QString &name);

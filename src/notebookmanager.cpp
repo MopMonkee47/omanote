@@ -9,10 +9,6 @@
 
 NotebookManager::NotebookManager(QObject *parent)
     : QAbstractListModel(parent) {
-    // Notebooks live in ~/Documents
-    const QString docsDir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-    m_notebooksRoot = docsDir;
-
     loadLastOpened();
 
     // Watch the root and its direct children for external changes
@@ -208,6 +204,20 @@ QStringList NotebookManager::recentNotebooks() const {
     return settings.value(QStringLiteral("notebooks/recent")).toStringList();
 }
 
+QStringList NotebookManager::availableNotebooks() const {
+    const QString docsDir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    QDir dir(docsDir);
+    if (!dir.exists())
+        return {};
+
+    QStringList notebooks;
+    const QFileInfoList entries = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name | QDir::IgnoreCase);
+    for (const QFileInfo &info : entries) {
+        notebooks.append(info.absoluteFilePath());
+    }
+    return notebooks;
+}
+
 void NotebookManager::removeRecent(const QString &path) {
     QSettings settings;
     QStringList recent = settings.value(QStringLiteral("notebooks/recent")).toStringList();
@@ -243,6 +253,15 @@ void NotebookManager::loadLastOpened() {
 void NotebookManager::clearLastOpened() {
     QSettings settings;
     settings.remove(QStringLiteral("notebooks/lastOpened"));
+
+    m_notebooksRoot.clear();
+    m_currentNotebook.clear();
+    m_items.clear();
+    beginResetModel();
+    endResetModel();
+    emit countChanged();
+    emit notebooksRootChanged();
+    emit currentNotebookChanged();
 }
 
 QString NotebookManager::createTab(const QString &name) {

@@ -549,46 +549,104 @@ ApplicationWindow {
         anchors.centerIn: parent
         standardButtons: Dialog.Close
         width: 400
-        height: 350
+        height: 450
         clip: true
 
         property var recentList: []
+        property var availableList: []
+        property int selectedIndex: 0
 
         onOpened: {
             recentList = notebookManager.recentNotebooks();
+            availableList = notebookManager.availableNotebooks();
+            selectedIndex = 0;
+        }
+
+        function totalCount() {
+            return availableList.length + recentList.length;
+        }
+
+        function openSelected() {
+            if (selectedIndex < availableList.length) {
+                notebookManager.openNotebook(availableList[selectedIndex]);
+            } else {
+                var idx = selectedIndex - availableList.length;
+                if (idx < recentList.length)
+                    notebookManager.openNotebook(recentList[idx]);
+            }
+            notebookPickerDialog.close();
         }
 
         contentItem: ColumnLayout {
             spacing: 12
+            focus: true
 
-            // New notebook section
-            RowLayout {
-                spacing: 8
+            Keys.onUpPressed: notebookPickerDialog.selectedIndex = Math.max(0, notebookPickerDialog.selectedIndex - 1)
+            Keys.onDownPressed: notebookPickerDialog.selectedIndex = Math.min(notebookPickerDialog.totalCount() - 1, notebookPickerDialog.selectedIndex + 1)
+            Keys.onReturnPressed: notebookPickerDialog.openSelected()
+            Keys.onEnterPressed: notebookPickerDialog.openSelected()
+
+            Rectangle {
                 Layout.fillWidth: true
+                height: 1
+                color: Qt.darker(backend.themeBackground, 1.15)
+            }
 
-                TextField {
-                    id: newNotebookField
-                    placeholderText: "New notebook name..."
-                    Layout.fillWidth: true
-                    selectByMouse: true
-                    onAccepted: {
-                        var name = text.trim();
-                        if (name.length > 0) {
-                            notebookManager.createNotebook(name);
-                            notebookPickerDialog.close();
-                        }
+            // Available notebooks
+            Text {
+                text: "Available Notebooks"
+                color: backend.darkMode ? "#909191" : "#aeb1b5"
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+                visible: notebookPickerDialog.availableList.length > 0
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(notebookPickerDialog.availableList.length * 34, 120)
+                model: notebookPickerDialog.availableList
+                clip: true
+                spacing: 2
+                currentIndex: notebookPickerDialog.selectedIndex
+                keyNavigationEnabled: false
+
+                delegate: Rectangle {
+                    width: ListView.view.width
+                    height: 32
+                    radius: 4
+                    color: index === notebookPickerDialog.selectedIndex
+                        ? backend.themeAccent
+                        : (availMouse.containsMouse ? Qt.lighter(backend.themeBackground, 1.08) : "transparent")
+
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: modelData.split("/").pop()
+                        color: index === notebookPickerDialog.selectedIndex ? "#fff" : (backend.darkMode ? "#c8c8c8" : "#1d1d1f")
+                        font.pixelSize: 13
+                        elide: Text.ElideRight
                     }
-                    Material.accent: backend.themeAccent
-                }
 
-                Button {
-                    text: "Create"
-                    flat: true
-                    onClicked: {
-                        var name = newNotebookField.text.trim();
-                        if (name.length > 0) {
-                            notebookManager.createNotebook(name);
-                            notebookPickerDialog.close();
+                    Text {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: modelData
+                        color: index === notebookPickerDialog.selectedIndex ? Qt.lighter("#fff", 0.7) : (backend.darkMode ? "#666" : "#999")
+                        font.pixelSize: 10
+                        elide: Text.ElideLeft
+                        width: parent.width * 0.4
+                        horizontalAlignment: Text.AlignRight
+                    }
+
+                    MouseArea {
+                        id: availMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            notebookPickerDialog.selectedIndex = index;
+                            notebookPickerDialog.openSelected();
                         }
                     }
                 }
@@ -598,6 +656,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 height: 1
                 color: Qt.darker(backend.themeBackground, 1.15)
+                visible: notebookPickerDialog.recentList.length > 0 && notebookPickerDialog.availableList.length > 0
             }
 
             // Recent notebooks
@@ -615,21 +674,23 @@ ApplicationWindow {
                 model: notebookPickerDialog.recentList
                 clip: true
                 spacing: 2
+                currentIndex: notebookPickerDialog.selectedIndex - notebookPickerDialog.availableList.length
+                keyNavigationEnabled: false
 
                 delegate: Rectangle {
                     width: ListView.view.width
                     height: 32
                     radius: 4
-                    color: recentMouse.containsMouse
-                        ? Qt.lighter(backend.themeBackground, 1.08)
-                        : "transparent"
+                    color: (index + notebookPickerDialog.availableList.length) === notebookPickerDialog.selectedIndex
+                        ? backend.themeAccent
+                        : (recentMouse.containsMouse ? Qt.lighter(backend.themeBackground, 1.08) : "transparent")
 
                     Text {
                         anchors.left: parent.left
                         anchors.leftMargin: 8
                         anchors.verticalCenter: parent.verticalCenter
                         text: modelData.split("/").pop()
-                        color: backend.darkMode ? "#c8c8c8" : "#1d1d1f"
+                        color: (index + notebookPickerDialog.availableList.length) === notebookPickerDialog.selectedIndex ? "#fff" : (backend.darkMode ? "#c8c8c8" : "#1d1d1f")
                         font.pixelSize: 13
                         elide: Text.ElideRight
                     }
@@ -639,7 +700,7 @@ ApplicationWindow {
                         anchors.rightMargin: 8
                         anchors.verticalCenter: parent.verticalCenter
                         text: modelData
-                        color: backend.darkMode ? "#666" : "#999"
+                        color: (index + notebookPickerDialog.availableList.length) === notebookPickerDialog.selectedIndex ? Qt.lighter("#fff", 0.7) : (backend.darkMode ? "#666" : "#999")
                         font.pixelSize: 10
                         elide: Text.ElideLeft
                         width: parent.width * 0.4
@@ -651,8 +712,8 @@ ApplicationWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         onClicked: {
-                            notebookManager.openNotebook(modelData);
-                            notebookPickerDialog.close();
+                            notebookPickerDialog.selectedIndex = index + notebookPickerDialog.availableList.length;
+                            notebookPickerDialog.openSelected();
                         }
                     }
                 }
@@ -660,12 +721,12 @@ ApplicationWindow {
 
             // Empty state
             Text {
-                text: "No recent notebooks.\nCreate one above."
+                text: "No notebooks found."
                 color: backend.darkMode ? "#909191" : "#aeb1b5"
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter
                 Layout.fillWidth: true
-                visible: notebookPickerDialog.recentList.length === 0
+                visible: notebookPickerDialog.recentList.length === 0 && notebookPickerDialog.availableList.length === 0
             }
         }
     }
