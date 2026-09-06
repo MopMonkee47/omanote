@@ -102,6 +102,11 @@ Backend::Backend(QObject *parent) : QObject(parent) {
                 if (path != m_fileUrl.toLocalFile())
                     return;
 
+                if (m_suppressExternalChange) {
+                    m_suppressExternalChange = false;
+                    return;
+                }
+
                 const bool deleted = !QFileInfo::exists(path);
                 if (!deleted && m_hasKnownFileContents) {
                     QFile file(path);
@@ -420,6 +425,57 @@ void Backend::saveWindowGeometry(int x, int y, int width, int height, bool maxim
         settings.setValue(QStringLiteral("window/height"), height);
     }
     settings.setValue(QStringLiteral("window/maximized"), maximized);
+}
+
+void Backend::openPage(const QUrl &url) {
+    // Auto-save current page before switching
+    if (m_modified && m_fileUrl.isValid() && !m_fileUrl.isEmpty()) {
+        save();
+    }
+
+    if (!url.isLocalFile()) {
+        setStatus(QStringLiteral("Only local files can be opened."));
+        return;
+    }
+
+    const QString targetName = QFileInfo(url.toLocalFile()).fileName();
+    QFile file(url.toLocalFile());
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        setStatus(QStringLiteral("Could not open %1.").arg(targetName));
+        return;
+    }
+
+    const QByteArray contents = file.readAll();
+    loadDocumentText(QString::fromUtf8(contents));
+    clearRecovery();
+    m_lastKnownFileContents = contents;
+    m_hasKnownFileContents = true;
+    setFileUrl(url);
+    watchCurrentFile();
+    setModified(false);
+    setStatus(QStringLiteral("Opened %1").arg(fileName()));
+}
+
+void Backend::openUntitled() {
+    if (!m_fileUrl.isEmpty() && m_modified) {
+        setStatus(QStringLiteral("Unsaved changes"));
+        return;
+    }
+    loadDocumentText(QString());
+    clearRecovery();
+    m_lastKnownFileContents.clear();
+    m_hasKnownFileContents = false;
+    setFileUrl(QUrl());
+    setModified(false);
+    setStatus(QStringLiteral("New page"));
+}
+
+QString Backend::currentContent() const {
+    return m_document ? m_document->toPlainText() : QString();
+}
+
+void Backend::suppressNextExternalChange() {
+    m_suppressExternalChange = true;
 }
 
 void Backend::loadDocumentText(const QString &text) {

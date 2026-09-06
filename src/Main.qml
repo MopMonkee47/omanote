@@ -13,7 +13,7 @@ ApplicationWindow {
     minimumWidth: 720
     minimumHeight: 520
     visible: true
-    title: (backend.modified ? "* " : "") + backend.fileName + " - Omawrite"
+    title: (backend.modified ? "* " : "") + backend.fileName + " - OmaNote"
 
     readonly property bool darkMode: backend.darkMode
     readonly property color pageColor: backend.themeBackground
@@ -30,6 +30,8 @@ ApplicationWindow {
         Math.round(writerFontMetrics.averageCharacterWidth * 65),
         Math.max(360, width - Math.round(writerFontMetrics.averageCharacterWidth * 20)))
     property bool closeConfirmed: false
+    property bool sidebarOpen: false
+    property string currentPagePath: ""
     property bool searchOpen: false
     property bool searchUpdating: false
     property var searchMatches: []
@@ -44,13 +46,24 @@ ApplicationWindow {
     color: pageColor
 
     onClosing: function(close) {
-        if (closeConfirmed || !backend.modified)
+        if (closeConfirmed)
             return;
 
-        close.accepted = false;
-        pendingAction = "close";
-        if (!unsavedChangesDialog.opened)
-            unsavedChangesDialog.open();
+        // If there are unsaved editor changes, handle that first
+        if (backend.modified) {
+            close.accepted = false;
+            pendingAction = "close";
+            if (!unsavedChangesDialog.opened)
+                unsavedChangesDialog.open();
+            return;
+        }
+
+        // If a notebook is open, ask to save or delete it
+        if (notebookManager.currentNotebook !== "") {
+            close.accepted = false;
+            saveNotebookDialog.open();
+            return;
+        }
     }
 
     function requestOpen(url) {
@@ -67,8 +80,13 @@ ApplicationWindow {
         var action = pendingAction;
         pendingAction = "";
         if (action === "close") {
-            closeConfirmed = true;
-            close();
+            // After saving editor, check if notebook needs saving
+            if (notebookManager.currentNotebook !== "") {
+                saveNotebookDialog.open();
+            } else {
+                closeConfirmed = true;
+                close();
+            }
         } else if (action === "open") {
             backend.open(pendingOpenUrl);
         }
@@ -187,7 +205,67 @@ ApplicationWindow {
     Shortcut {
         sequence: "Ctrl+N"
         context: Qt.ApplicationShortcut
+        onActivated: {
+            if (sidebarOpen && sidebarLoader.item) {
+                var idx = sidebarLoader.item.currentIndex;
+                if (idx >= 0) {
+                    var item = notebookManager.itemAt(idx);
+                    if (!item.isPage) {
+                        notebookManager.createPage(item.path, "Untitled");
+                    } else {
+                        notebookManager.createPage(item.parentPath, "Untitled");
+                    }
+                } else if (notebookManager.count > 0) {
+                    var firstTab = notebookManager.itemAt(0);
+                    notebookManager.createPage(firstTab.path, "Untitled");
+                }
+            } else {
+                backend.newWindow();
+            }
+        }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Shift+N"
+        context: Qt.ApplicationShortcut
         onActivated: backend.newWindow()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+\\"
+        context: Qt.ApplicationShortcut
+        onActivated: sidebarOpen = !sidebarOpen
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Shift+O"
+        context: Qt.ApplicationShortcut
+        onActivated: {
+            if (!sidebarOpen) sidebarOpen = true;
+            notebookPickerDialog.open();
+        }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Shift+M"
+        context: Qt.ApplicationShortcut
+        onActivated: {
+            if (!sidebarOpen) sidebarOpen = true;
+            convertToNotebookDialog.open();
+        }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Shift+T"
+        context: Qt.ApplicationShortcut
+        onActivated: {
+            if (!sidebarOpen) sidebarOpen = true;
+            if (notebookManager.currentNotebook === "") {
+                notebookPickerDialog.open();
+            } else if (sidebarLoader.item) {
+                sidebarLoader.item.openNewTabDialog();
+            }
+        }
     }
 
     Shortcut {
@@ -311,6 +389,133 @@ ApplicationWindow {
         onCancelRequested: win.pendingAction = ""
     }
 
+    Dialog {
+        id: saveNotebookDialog
+        modal: true
+        title: "Save Notebook?"
+        anchors.centerIn: parent
+        width: 350
+
+        property int selectedIndex: 0
+
+        contentItem: ColumnLayout {
+            spacing: 12
+            focus: true
+
+            Keys.onLeftPressed: saveNotebookDialog.selectedIndex = Math.max(0, saveNotebookDialog.selectedIndex - 1)
+            Keys.onRightPressed: saveNotebookDialog.selectedIndex = Math.min(2, saveNotebookDialog.selectedIndex + 1)
+            Keys.onReturnPressed: saveNotebookDialog.selectOption()
+            Keys.onEnterPressed: saveNotebookDialog.selectOption()
+            Keys.onEscapePressed: saveNotebookDialog.close()
+
+            Label {
+                text: "Do you want to keep the notebook \"" + notebookName() + "\"?"
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+
+            RowLayout {
+                spacing: 8
+                Layout.fillWidth: true
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 36
+                    radius: 4
+                    color: saveNotebookDialog.selectedIndex === 0
+                        ? backend.themeAccent
+                        : Qt.darker(backend.themeBackground, 1.1)
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Keep"
+                        color: saveNotebookDialog.selectedIndex === 0 ? "#fff" : (win.darkMode ? "#c8c8c8" : "#1d1d1f")
+                        font.pixelSize: 13
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            saveNotebookDialog.close();
+                            closeConfirmed = true;
+                            win.close();
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 36
+                    radius: 4
+                    color: saveNotebookDialog.selectedIndex === 1
+                        ? backend.themeAccent
+                        : Qt.darker(backend.themeBackground, 1.1)
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Delete"
+                        color: saveNotebookDialog.selectedIndex === 1 ? "#fff" : (win.darkMode ? "#c8c8c8" : "#1d1d1f")
+                        font.pixelSize: 13
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            notebookManager.deleteNotebook(notebookManager.currentNotebook);
+                            saveNotebookDialog.close();
+                            closeConfirmed = true;
+                            win.close();
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 36
+                    radius: 4
+                    color: saveNotebookDialog.selectedIndex === 2
+                        ? backend.themeAccent
+                        : Qt.darker(backend.themeBackground, 1.1)
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Cancel"
+                        color: saveNotebookDialog.selectedIndex === 2 ? "#fff" : (win.darkMode ? "#c8c8c8" : "#1d1d1f")
+                        font.pixelSize: 13
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: saveNotebookDialog.close()
+                    }
+                }
+            }
+        }
+
+        onOpened: {
+            selectedIndex = 0;
+            contentItem.forceActiveFocus();
+        }
+
+        function selectOption() {
+            if (selectedIndex === 0) {
+                closeConfirmed = true;
+                win.close();
+            } else if (selectedIndex === 1) {
+                notebookManager.deleteNotebook(notebookManager.currentNotebook);
+                closeConfirmed = true;
+                win.close();
+            }
+            saveNotebookDialog.close();
+        }
+
+        function notebookName() {
+            var nb = notebookManager.currentNotebook;
+            if (nb === "") return "";
+            return nb.split("/").pop();
+        }
+    }
+
     ExternalChangeDialog {
         id: externalChangeDialog
         darkMode: win.darkMode
@@ -331,15 +536,252 @@ ApplicationWindow {
         standardButtons: Dialog.Close
         anchors.centerIn: parent
         contentItem: Label {
-            text: "Ctrl+S  Save\nCtrl+Shift+S  Save As\nCtrl+O  Open\nCtrl+N  New Window\nCtrl+F  Find\nCtrl+H  Find and Replace\nCtrl+B  Bold\nCtrl+I  Italic\nCtrl+K  Link\nCtrl+P  Print\nF11 / Super+F  Fullscreen\nCtrl+?  Shortcuts"
+            text: "Ctrl+S  Save\nCtrl+Shift+S  Save As\nCtrl+O  Open\nCtrl+N  New Page\nCtrl+Shift+N  New Window\nCtrl+\\  Toggle Sidebar\nCtrl+Shift+O  Open Notebook\nCtrl+Shift+M  Make into Notebook\nCtrl+Shift+T  New Tab\nCtrl+F  Find\nCtrl+H  Find and Replace\nCtrl+B  Bold\nCtrl+I  Italic\nCtrl+K  Link\nCtrl+P  Print\nF11 / Super+F  Fullscreen\nCtrl+?  Shortcuts\n\nSidebar (when focused):\nUp/Down  Navigate\nEnter  Open page / expand tab\nDelete  Delete item\nF2  Rename\nN  New page in tab\nCtrl+Up/Down  Move page within tab\nCtrl+Shift+Up/Down  Move page to adjacent tab\nEscape  Close sidebar"
             lineHeight: 1.5
         }
     }
 
-    Item {
-        anchors.fill: parent
+    // Notebook picker dialog
+    Dialog {
+        id: notebookPickerDialog
+        modal: true
+        title: "Open Notebook"
+        anchors.centerIn: parent
+        standardButtons: Dialog.Close
+        width: 400
+        height: 350
+        clip: true
 
-        Flickable {
+        property var recentList: []
+
+        onOpened: {
+            recentList = notebookManager.recentNotebooks();
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 12
+
+            // New notebook section
+            RowLayout {
+                spacing: 8
+                Layout.fillWidth: true
+
+                TextField {
+                    id: newNotebookField
+                    placeholderText: "New notebook name..."
+                    Layout.fillWidth: true
+                    selectByMouse: true
+                    onAccepted: {
+                        var name = text.trim();
+                        if (name.length > 0) {
+                            notebookManager.createNotebook(name);
+                            notebookPickerDialog.close();
+                        }
+                    }
+                    Material.accent: backend.themeAccent
+                }
+
+                Button {
+                    text: "Create"
+                    flat: true
+                    onClicked: {
+                        var name = newNotebookField.text.trim();
+                        if (name.length > 0) {
+                            notebookManager.createNotebook(name);
+                            notebookPickerDialog.close();
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: Qt.darker(backend.themeBackground, 1.15)
+            }
+
+            // Recent notebooks
+            Text {
+                text: "Recent"
+                color: backend.darkMode ? "#909191" : "#aeb1b5"
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+                visible: notebookPickerDialog.recentList.length > 0
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                model: notebookPickerDialog.recentList
+                clip: true
+                spacing: 2
+
+                delegate: Rectangle {
+                    width: ListView.view.width
+                    height: 32
+                    radius: 4
+                    color: recentMouse.containsMouse
+                        ? Qt.lighter(backend.themeBackground, 1.08)
+                        : "transparent"
+
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: modelData.split("/").pop()
+                        color: backend.darkMode ? "#c8c8c8" : "#1d1d1f"
+                        font.pixelSize: 13
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: modelData
+                        color: backend.darkMode ? "#666" : "#999"
+                        font.pixelSize: 10
+                        elide: Text.ElideLeft
+                        width: parent.width * 0.4
+                        horizontalAlignment: Text.AlignRight
+                    }
+
+                    MouseArea {
+                        id: recentMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            notebookManager.openNotebook(modelData);
+                            notebookPickerDialog.close();
+                        }
+                    }
+                }
+            }
+
+            // Empty state
+            Text {
+                text: "No recent notebooks.\nCreate one above."
+                color: backend.darkMode ? "#909191" : "#aeb1b5"
+                font.pixelSize: 12
+                horizontalAlignment: Text.AlignHCenter
+                Layout.fillWidth: true
+                visible: notebookPickerDialog.recentList.length === 0
+            }
+        }
+    }
+
+    // Make into Notebook dialog
+    Dialog {
+        id: convertToNotebookDialog
+        modal: true
+        title: "Make into Notebook"
+        anchors.centerIn: parent
+        width: 350
+
+        contentItem: ColumnLayout {
+            spacing: 12
+
+            Label {
+                text: "Move the current file into a new notebook?"
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+
+            TextField {
+                id: convertNotebookName
+                placeholderText: "Notebook name"
+                selectByMouse: true
+                Layout.fillWidth: true
+                Keys.onReturnPressed: convertToNotebookDialog.accept()
+                Keys.onEnterPressed: convertToNotebookDialog.accept()
+                Material.accent: backend.themeAccent
+            }
+        }
+
+        onOpened: {
+            convertNotebookName.text = "";
+            convertNotebookName.forceActiveFocus();
+        }
+
+        onAccepted: {
+            var name = convertNotebookName.text.trim();
+            if (name.length === 0) return;
+
+            var urlStr = backend.fileUrl.toString();
+            if (urlStr !== "") {
+                var filePath = backend.fileUrl.toLocalFile();
+                notebookManager.convertFileToNotebook(filePath, name);
+            } else {
+                var content = backend.currentContent();
+                notebookManager.convertContentToNotebook(content, name);
+            }
+            convertToNotebookDialog.close();
+        }
+    }
+
+    // Auto-select first page when a notebook opens
+    Connections {
+        target: notebookManager
+        function onCurrentNotebookChanged() {
+            if (notebookManager.count > 0) {
+                var first = notebookManager.itemAt(0);
+                if (first.isPage) {
+                    win.currentPagePath = first.path;
+                    backend.openPage(new URL("file://" + first.path));
+                } else {
+                    // First item is a tab, look for first page
+                    for (var i = 0; i < notebookManager.count; i++) {
+                        var item = notebookManager.itemAt(i);
+                        if (item.isPage) {
+                            win.currentPagePath = item.path;
+                            backend.openPage(new URL("file://" + item.path));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    RowLayout {
+        anchors.fill: parent
+        spacing: 0
+
+        // Sidebar
+        Loader {
+            id: sidebarLoader
+            active: win.sidebarOpen
+            sourceComponent: Sidebar {
+                darkMode: win.darkMode
+                currentPagePath: win.currentPagePath
+                onPageSelected: function(path) {
+                    win.currentPagePath = path;
+                    backend.openPage(new URL("file://" + path));
+                }
+                onClosed: {
+                    win.sidebarOpen = false;
+                }
+                onOpenNotebookPicker: notebookPickerDialog.open()
+                onOpenConvertToNotebook: convertToNotebookDialog.open()
+            }
+            Layout.preferredWidth: 240
+            Layout.fillHeight: true
+
+            onActiveChanged: {
+                if (!active) {
+                    editor.forceActiveFocus();
+                } else {
+                    item.forceActiveFocus();
+                }
+            }
+        }
+
+        // Editor area
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            Flickable {
             id: editorFlick
             anchors.fill: parent
             anchors.leftMargin: 24
@@ -532,7 +974,7 @@ ApplicationWindow {
             TextEdit {
                 id: editor
                 objectName: "sourceEditor"
-                x: Math.round((editorFlick.width - width) / 2)
+                x: Math.max(0, Math.round((editorFlick.width - width) / 2))
                 y: Math.max(42, Math.round(win.height * 0.05))
                 width: win.editorWidth
                 height: Math.max(editorFlick.height - y - 96, implicitHeight + 20)
@@ -998,7 +1440,8 @@ ApplicationWindow {
                 }
             }
         }
-    }
+        }  // close editor area Item
+    }  // close RowLayout
 
     Component.onCompleted: {
         var geometry = backend.windowGeometry();
@@ -1009,6 +1452,9 @@ ApplicationWindow {
         if (geometry.maximized) showMaximized();
     }
 
-    Component.onDestruction: backend.saveWindowGeometry(x, y, width, height, visibility === Window.Maximized)
+    Component.onDestruction: {
+        notebookManager.clearLastOpened();
+        backend.saveWindowGeometry(x, y, width, height, visibility === Window.Maximized);
+    }
 
 }

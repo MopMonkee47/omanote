@@ -74,6 +74,10 @@ public:
     Q_INVOKABLE void openExternalUrl(const QUrl &url);
     Q_INVOKABLE QVariantMap windowGeometry() const;
     Q_INVOKABLE void saveWindowGeometry(int x, int y, int width, int height, bool maximized);
+    Q_INVOKABLE void openPage(const QUrl &url);
+    Q_INVOKABLE void openUntitled();
+    Q_INVOKABLE QString currentContent() const;
+    Q_INVOKABLE void suppressNextExternalChange();
 
 signals:
     void fileUrlChanged();
@@ -120,6 +124,7 @@ private:
     bool m_loading = false;
     bool m_closeAfterSave = false;
     bool m_formattingTypography = false;
+    bool m_suppressExternalChange = false;
     int m_formattedBlockCount = 0;
     int m_lastChangePos = 0;
     int m_lastChangeAdded = 0;

@@ -11,13 +11,14 @@
 #include <QFile>
 
 #include "backend.h"
+#include "notebookmanager.h"
 #include "systemtheme.h"
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
-    app.setApplicationName(QStringLiteral("omawrite"));
-    app.setDesktopFileName(QStringLiteral("omawrite"));
-    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("omawrite")));
+    app.setApplicationName(QStringLiteral("omanote"));
+    app.setDesktopFileName(QStringLiteral("omanote"));
+    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("omanote")));
 
     QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/iAWriterMonoS-Regular.ttf"));
     QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/iAWriterMonoS-Italic.ttf"));
@@ -29,6 +30,7 @@ int main(int argc, char *argv[]) {
     QQuickStyle::setStyle(QStringLiteral("Material"));
 
     Backend backend(&app);
+    NotebookManager notebookManager(&app);
     SystemTheme systemTheme(&app);
     backend.setDarkMode(systemTheme.darkMode());
     QObject::connect(&systemTheme, &SystemTheme::darkModeChanged, &backend,
@@ -61,10 +63,11 @@ int main(int argc, char *argv[]) {
             qWarning().noquote() << warning.toString();
     });
     engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
+    engine.rootContext()->setContextProperty(QStringLiteral("notebookManager"), &notebookManager);
 
     engine.load(QUrl(QStringLiteral("qrc:/Main.qml")));
     if (engine.rootObjects().isEmpty()) {
-        qCritical() << "Could not load the Omawrite interface; resource available:"
+        qCritical() << "Could not load the OmaNote interface; resource available:"
                     << QFile::exists(QStringLiteral(":/Main.qml"));
         return -1;
     }
