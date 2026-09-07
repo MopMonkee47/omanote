@@ -11,6 +11,10 @@ Open it up and use it exactly like you would Omawrite. And if you want too; use 
    * From there you can add tabs and pages
    * Tabs are folders within the Notebook folder and Pages are new .md documents in the folders
 
+![OmaNote - Light Mode](screenshots/screenshot-2026-09-06_17-51-50.png)
+![OmaNote - Dark Mode](screenshots/screenshot-2026-09-06_17-52-21.png)
+![OmaNote - Notebook](screenshots/screenshot-2026-09-06_18-16-34.png)
+
 
 
 
