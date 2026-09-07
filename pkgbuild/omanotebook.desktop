@@ -1,12 +1,12 @@
 [Desktop Entry]
 Type=Application
-Name=OmaNote
+Name=OmaNotebook
 GenericName=Markdown Writer
 Comment=Dead-simple Markdown writing app
-Exec=omanote %f
-Icon=omanote
+Exec=omanotebook %f
+Icon=omanotebook
 Terminal=false
 Categories=Office;WordProcessor;TextEditor;
 MimeType=text/markdown;text/x-markdown;text/plain;
 Keywords=markdown;write;notes;text;editor;
-StartupWMClass=omanote
+StartupWMClass=omanotebook

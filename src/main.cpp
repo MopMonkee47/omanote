@@ -16,9 +16,9 @@
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
-    app.setApplicationName(QStringLiteral("omanote"));
-    app.setDesktopFileName(QStringLiteral("omanote"));
-    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("omanote")));
+    app.setApplicationName(QStringLiteral("omanotebook"));
+    app.setDesktopFileName(QStringLiteral("omanotebook"));
+    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("omanotebook")));
 
     QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/iAWriterMonoS-Regular.ttf"));
     QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/iAWriterMonoS-Italic.ttf"));
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
 
     engine.load(QUrl(QStringLiteral("qrc:/Main.qml")));
     if (engine.rootObjects().isEmpty()) {
-        qCritical() << "Could not load the OmaNote interface; resource available:"
+        qCritical() << "Could not load the OmaNotebook interface; resource available:"
                     << QFile::exists(QStringLiteral(":/Main.qml"));
         return -1;
     }

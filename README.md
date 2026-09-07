@@ -1,4 +1,4 @@
-# OmaNote
+# OmaNotebook
 
 A simple addition to OmaWrite (the dead-simple Markdown writing app built with Qt Quick and C++ that automatically follows system dark/light mode.)
 Open it up and use it exactly like you would Omawrite. And if you want too; use the added ability to take your document and make it a Notebook with a similar workflow to OneNote. 
@@ -11,9 +11,9 @@ Open it up and use it exactly like you would Omawrite. And if you want too; use 
    * From there you can add tabs and pages
    * Tabs are folders within the Notebook folder and Pages are new .md documents in the folders
 
-![OmaNote - Light Mode](screenshots/screenshot-2026-09-06_17-51-50.png)
-![OmaNote - Dark Mode](screenshots/screenshot-2026-09-06_17-52-21.png)
-![OmaNote - Notebook](screenshots/screenshot-2026-09-06_18-16-34.png)
+![OmaNotebook - Light Mode](screenshots/screenshot-2026-09-06_17-51-50.png)
+![OmaNotebook - Dark Mode](screenshots/screenshot-2026-09-06_17-52-21.png)
+![OmaNotebook - Notebook](screenshots/screenshot-2026-09-06_18-16-34.png)
 
 
 
@@ -29,7 +29,7 @@ TBD
 - `Ctrl+Shift+S` saves as.
 - `Ctrl+O` opens a Markdown file through the portal picker.
 - `Ctrl+N` opens a new page.
-- `Ctrl+Shift+N` opens a new OmaNote window.
+- `Ctrl+Shift+N` opens a new OmaNotebook window.
 - `Ctrl+P` opens the system print dialog.
 - `Ctrl+Z`, `Ctrl+Shift+Z`, and `Ctrl+Y` handle undo and redo.
 - `Super+F` toggles fullscreen. Qt maps this key as `Meta+F`.
@@ -56,12 +56,12 @@ TBD
 - `Ctrl+Shift+Up/Down` moves a page to an adjacent tab.
 - `Escape` closes the sidebar.
 
-Unsaved drafts are recovered after an abnormal exit. OmaNote also watches open files
+Unsaved drafts are recovered after an abnormal exit. OmaNotebook also watches open files
 and warns before an external change can replace local work.
 
 Text follows the desktop text size — `omarchy display text size`, or GNOME's
 `text-scaling-factor` — and re-flows without a restart. The default of 12px leaves
-OmaNote at the size it is designed around; larger and smaller sizes scale from there.
+OmaNotebook at the size it is designed around; larger and smaller sizes scale from there.
 
 ## Requirements
 
