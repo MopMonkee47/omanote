@@ -1,14 +1,23 @@
 # OmaNote
 
-A dead-simple Markdown writing app built with Qt Quick and C++ that automatically follows system dark/light mode.
+A simple addition to OmaWrite (the dead-simple Markdown writing app built with Qt Quick and C++ that automatically follows system dark/light mode.)
+Open it up and use it exactly like you would Omawrite. And if you want too; use the added ability to take your document and make it a Notebook with a similar workflow to OneNote. 
+  * Open the sidebar menu with Ctrl+\ 
+  * Convert your document to a Notebook or open an existing Notebook.
 
-<img width="2948" height="3227" alt="screenshot-2026-06-23_15-24-08" src="https://github.com/user-attachments/assets/4e930c0d-edda-4046-b444-a59eff523329" />
-<img width="2948" height="3227" alt="screenshot-2026-06-23_15-23-23" src="https://github.com/user-attachments/assets/8ced7c26-961b-4ded-b263-84403001a951" />
+ What does converting your existing document into Notebook look like?
+   * You are prompted to create a name for your Notebook
+   * A folder is created in your Documents with that name and the document you are working on becomes the title page
+   * From there you can add tabs and pages
+   * Tabs are folders within the Notebook folder and Pages are new .md documents in the folders
+
+
+
 
 
 ## Install
 
-Install via the Omarchy Package Repository via the `omanote` package. It's installed by default in new installations of Omarchy (from Quattro forward).
+TBD
 
 ## Shortcuts
 
